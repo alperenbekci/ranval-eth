@@ -3,9 +3,8 @@ import { NFTStorage, File } from "nft.storage";
 import { Buffer } from "buffer";
 import { ethers } from "ethers";
 import axios from "axios";
-
-// Components
 import Spinner from "react-bootstrap/Spinner";
+
 import Navigation from "./components/Navigation";
 
 // ABIs
@@ -18,6 +17,7 @@ function App() {
   const [provider, setProvider] = useState(null);
   const [account, setAccount] = useState(null);
   const [nft, setNFT] = useState(null);
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -28,17 +28,29 @@ function App() {
   const [isWaiting, setIsWaiting] = useState(false);
 
   const loadBlockchainData = async () => {
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    setProvider(provider);
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      setProvider(provider);
 
-    const network = await provider.getNetwork();
+      const network = await provider.getNetwork();
 
-    const nft = new ethers.Contract(
-      config[network.chainId].nft.address,
-      NFT,
-      provider
-    );
-    setNFT(nft);
+      const nft = new ethers.Contract(
+        config[network.chainId].nft.address,
+        NFT,
+        provider
+      );
+      setNFT(nft);
+
+      // Check if the wallet is connected
+      if (window.ethereum && window.ethereum.selectedAddress) {
+        setAccount(window.ethereum.selectedAddress);
+        setIsWalletConnected(true);
+      } else {
+        setIsWalletConnected(false);
+      }
+    } catch (error) {
+      console.error("Error loading blockchain data:", error);
+    }
   };
 
   const submitHandler = async (e) => {
@@ -51,7 +63,7 @@ function App() {
 
     setIsWaiting(true);
 
-    // Call AI API to generate a image based on description
+    // Call AI API to generate an image based on description
     const imageData = await createImage();
 
     // Upload image to IPFS (NFT.Storage)
@@ -134,38 +146,68 @@ function App() {
 
   return (
     <div>
+      {/* Conditionally render "Connect Wallet" message */}
+
       <Navigation account={account} setAccount={setAccount} />
-
-      <div className="form">
-        <form onSubmit={submitHandler}>
-          <input
-            type="text"
-            placeholder="NFT Name..."
-            onChange={(e) => {
-              setName(e.target.value);
-            }}
-          />
-          <input
-            type="text"
-            placeholder="NFT Prompt..."
-            onChange={(e) => setDescription(e.target.value)}
-          />
-          <input type="submit" value="Create & Mint" />
-        </form>
-
-        <div className="image">
-          {!isWaiting && image ? (
-            <img src={image} alt="AI generated" />
-          ) : isWaiting ? (
-            <div className="image__placeholder">
-              <Spinner animation="border" />
-              <p>{message}</p>
-            </div>
-          ) : (
-            <></>
-          )}
+      {!isWalletConnected && (
+        <div className="form-container">
+          <h2 className="form-header">RanVal.eth v1.0.1</h2>
+          <form className="meta-form">
+            <label htmlFor="title" className="form-label">
+              <p>
+                RanVal is a WEB3 service where users can generate their NFT's
+                with Ranval AI and trade them with others via RanVal
+                Marketplace.
+              </p>
+              <br></br>
+              <p>
+                It also assists users who want to determine the uniqueness of
+                their ideas and whether they exist among existing projects.
+              </p>
+              <h2 className="form-header">RanVal Marketplace "coming soon"</h2>
+            </label>
+          </form>
+          <h2 className="opensource">
+            Please connect your wallet to get started ←
+          </h2>
         </div>
-      </div>
+      )}
+
+      {/* Conditionally render the form if wallet is connected */}
+      {isWalletConnected && (
+        <div className="form-container">
+          <div className="form">
+            <form onSubmit={submitHandler}>
+              <input
+                type="text"
+                placeholder="NFT Name..."
+                onChange={(e) => {
+                  setName(e.target.value);
+                }}
+              />
+              <input
+                type="text"
+                placeholder="NFT Prompt..."
+                onChange={(e) => setDescription(e.target.value)}
+              />
+              <input type="submit" value="Create & Mint" />
+            </form>
+
+            <div className="image">
+              {!isWaiting && image ? (
+                <img src={image} alt="AI generated" />
+              ) : isWaiting ? (
+                <div className="image__placeholder">
+                  <Spinner animation="border" />
+                  <p>{message}</p>
+                </div>
+              ) : (
+                <></>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isWaiting && url && (
         <p>
